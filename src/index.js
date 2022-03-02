@@ -15,21 +15,21 @@ const app = express();
 
 // configurar cors
 app.use(cors());
+// lectura y parseo del body
+app.use(express.json());
 
 // conexion a la bdd
  dbConnection();
 
  // rutas
-app.get('/', (req, res) => {
+ app.use('/api/login', require('./routes/auth.routing'));
+ app.use('/api/usuarios', require('./routes/usuarios.routing'));
 
-    res.json({ok: true, msg: 'Hola Mundo'})
-    // console.log('Hola Mundo');
-});
 
 
 // escucha del servidor
 app.listen(process.env.PORT, ()=> {
-    console.log('On run Server \x1b[32m%s\x1b[0m', process.env.PORT);
+    console.log('On Run Server \x1b[32m%s\x1b[0m', process.env.PORT);
 });
 
 
