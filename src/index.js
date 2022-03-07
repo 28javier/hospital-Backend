@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const express = require("express");
 const cors = require("cors");
 const { dbConnection } = require("./database/config");
+const fileUpload = require("express-fileupload");
 
 // leer las variables de entorno
 dotenv.config();
@@ -15,6 +16,13 @@ const app = express();
 app.use(cors());
 // lectura y parseo del body
 app.use(express.json());
+
+// carga de archivos
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/',
+  createParentPath: true
+}));
 
 // conexion a la bdd
 dbConnection();

@@ -1,64 +1,168 @@
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
+cloudinary.config(process.env.CLOUDINARY_URL);
 const { request, response } = require("express");
-const { v4 } = require("uuid");
-const { v4: uuidv4 } = require('uuid');
-const { actualizarImagen } = require("../helpers/actualizar-imagen.helpers");
-const res = require('express/lib/response');
+const { subirArchivo } = require('../helpers/subir-archivo.helpers');
+const UsuarioDB = require('../models/usuario.model');
+const MedicoDB = require('../models/medico.model');
+const HospitalDB = require('../models/hospital.model');
 
-const fileUpload = (req = request, resp = response) => {
-    const tipo = req.params.tipo;
-    const id = req.params.id;
-    // validar tipo
-    const tiposPermitidos = ['hospitales', 'medicos', 'usuarios'];
-    if (!tiposPermitidos.includes(tipo)) {
-        return resp.status(400).json({ok: false, msg: 'No es medicos, usuarios, hospitales (tipo)'});  
-    };
-    // validar que exista un archivo
-    if (!req.files || Object.keys(req.files).length === 0) {
-        return resp.status(400).json({ok: false, msg:'No se selecciono ningun archivo'});
-    };
-    // procesar la imagen...
-    const file = req.files.imagen;
-    // console.log(file);
-    const nombreCortado = file.name.split('.'); // cortar nombre de iamagen por el . final
-    const extensionArchivo = nombreCortado[nombreCortado.length - 1];
-    // Validar extension
-    const extesionesValidad = ['png', 'jpeg', 'jpg', 'git'];
-    if (!extesionesValidad.includes(extensionArchivo)) {
-        return resp.status(400).json({ok: false, msg: 'Solo se permiten imagen con extesiones [png, jpg, jpeg, git]'});  
-    };
-    // Generar nombre del archivo
-    const nombreArchivo = `${uuidv4()}.${extensionArchivo}`;
-    // Path para guardar la imagen
-    const pathI = `src/upload/${tipo}/${nombreArchivo}`;
-    // Mover la Imagen
-  file.mv( pathI, (err) => {
-    if (err) {
-        console.log(err);
-        return resp.status(500).json({ok: false, msg: 'Error al mover la Imagen'});
+
+
+const cargarArchivo = async (req = request, resp = response) => {
+  
+    try {
+        const nombre = await subirArchivo(req.files);
+        // const nombre = await subirArchivo(req.files, undefined, 'Imgs');
+        // const nombre = await subirArchivo(req.files, ['txt', 'md'], 'Texto');
+        resp.status(200).json({ok: true, msg:'Imagen Subida Correctamente', nombre});
+    } catch (error) {
+        resp.status(400).json({error});
     }
-    resp.status(200).json({ ok: true, msg: 'Archivo subido correctamente', nombreArchivo});     
-    });
-    // Actualizar la base de datos
-     actualizarImagen(tipo, id, nombreArchivo);
 };
 
-const retornaImagen = (req = request, resp = response) => {
-    const tipo = req.params.tipo;
-    const foto = req.params.foto;
-    const pathImg = path.join(__dirname, `../upload/${tipo}/${foto}`);
 
-    //imagen por defecto
-    if (fs.existsSync(pathImg)) {
-        resp.sendFile(pathImg);
-    } else {
+const actualizarImagenn = async(req = request, resp = response) => {
+    const {id, coleccion} = req.params;
+    let modelo;
+    switch (coleccion) {
+        case 'usuarios':
+            modelo = await UsuarioDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Usuario con ese ${id}`});
+            }
+            break;
+
+        case 'medicos':
+            modelo = await MedicoDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Medico con ese ${id}`});
+            }
+            break;
+
+        case 'hospitales':
+            modelo = await HospitalDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Hospital con ese ${id}`});
+            }
+        break;
+    
+        default:
+            return resp.status(500).json({msg: 'Se me olvido validar esto'})
+    };
+
+    // limpiar imagenes previas
+    if (modelo.img) {
+        // borrar imagen del server
+        const pathImagen = path.join(__dirname, '../upload', coleccion, modelo.img);
+        if (fs.existsSync(pathImagen)) {
+            fs.unlinkSync(pathImagen);
+        };
+    };
+        const nombre = await subirArchivo(req.files, undefined, coleccion);
+        modelo.img = nombre;
+        await modelo.save();
+        resp.status(200).json({
+            ok: true,
+            msg: 'Imagen Actualizada correctamente',
+            modelo
+        });
+
+};
+
+const actualizarImagenClaudanary = async(req = request, resp = response) => {
+    const {id, coleccion} = req.params;
+    let modelo;
+    switch (coleccion) {
+        case 'usuarios':
+            modelo = await UsuarioDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Usuario con ese ${id}`});
+            }
+            break;
+
+        case 'medicos':
+            modelo = await MedicoDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Medico con ese ${id}`});
+            }
+            break;
+
+        case 'hospitales':
+            modelo = await HospitalDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Hospital con ese ${id}`});
+            }
+        break;
+    
+        default:
+            return resp.status(500).json({msg: 'Se me olvido validar esto'})
+    };
+
+    // limpiar imagenes previas de cloudinary
+    if (modelo.img) {
+        const nombreArr = modelo.img.split('/');
+        const nombre = nombreArr[nombreArr.length - 1];
+        const [public_id] = nombre.split('.');
+        // console.log(public_id);
+     cloudinary.uploader.destroy(public_id);
+    };
+    // console.log(req.files.imagen);
+    const {tempFilePath} = req.files.imagen;
+    const {secure_url} = await cloudinary.uploader.upload(tempFilePath);
+        modelo.img = secure_url;
+        await modelo.save();
+        resp.status(200).json({
+            ok: true,
+            msg: 'Imagen Actualizada correctamente',
+            modelo
+        });
+
+};
+
+
+const mostrarImagen = async(req = request, resp = response) => {
+    const {id, coleccion} = req.params;
+    let modelo;
+    switch (coleccion) {
+        case 'usuarios':
+            modelo = await UsuarioDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Usuario con ese ${id}`});
+            }
+            break;
+
+        case 'medicos':
+            modelo = await MedicoDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Medico con ese ${id}`});
+            }
+            break;
+
+        case 'hospitales':
+            modelo = await HospitalDB.findById(id);
+            if (!modelo) {
+                return resp.status(400).json({ok: false, msg: `No existe un Hospital con ese ${id}`});
+            }
+        break;
+    
+        default:
+            return resp.status(500).json({msg: 'Se me olvido validar esto'})
+    };
+    if (modelo.img) {
+        const pathImagen = path.join(__dirname, '../upload', coleccion, modelo.img);
+        if (fs.existsSync(pathImagen)) {
+            return resp.sendFile(pathImagen);
+        }
+    };
     const pathImg = path.join(__dirname, `../upload/no-img.jpg`);
-    resp.sendFile(pathImg);
-    }
-}
+        resp.sendFile(pathImg);
+};
 
 module.exports = {
-    fileUpload,
-    retornaImagen
+    cargarArchivo,
+    actualizarImagenn,
+    actualizarImagenClaudanary,
+    mostrarImagen
 }
