@@ -1,10 +1,8 @@
+const dotenv = require("dotenv");
 
-const dotenv = require('dotenv');
-
-const express = require('express');
-const cors = require('cors');
-const {dbConnection} = require('./database/config');
-
+const express = require("express");
+const cors = require("cors");
+const { dbConnection } = require("./database/config");
 
 // leer las variables de entorno
 dotenv.config();
@@ -19,18 +17,17 @@ app.use(cors());
 app.use(express.json());
 
 // conexion a la bdd
- dbConnection();
+dbConnection();
 
- // rutas
- app.use('/api/login', require('./routes/auth.routing'));
- app.use('/api/usuarios', require('./routes/usuarios.routing'));
-
-
+// rutas
+app.use("/api/hospitales", require("./routes/hospital.routing"));
+app.use("/api/login", require("./routes/auth.routing"));
+app.use("/api/medicos", require("./routes/medico.routing"));
+app.use("/api/todo", require("./routes/busquedas.routing"));
+app.use("/api/usuarios", require("./routes/usuarios.routing"));
+app.use("/api/upload", require("./routes/upload.routing"));
 
 // escucha del servidor
-app.listen(process.env.PORT, ()=> {
-    console.log('On Run Server \x1b[32m%s\x1b[0m', process.env.PORT);
+app.listen(process.env.PORT, () => {
+  console.log("On Run Server \x1b[32m%s\x1b[0m", process.env.PORT);
 });
-
-
-
