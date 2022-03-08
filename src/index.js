@@ -27,6 +27,9 @@ app.use(fileUpload({
 // conexion a la bdd
 dbConnection();
 
+// directorio Publico
+app.use(express.static('src/public'));
+
 // rutas
 app.use("/api/hospitales", require("./routes/hospital.routing"));
 app.use("/api/login", require("./routes/auth.routing"));

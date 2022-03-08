@@ -3,7 +3,7 @@
 RUTA: /api/login
 */
 const { Router } = require('express');
-const {login} = require('../controllers/auth.controllers');
+const {login, googleSingIn} = require('../controllers/auth.controllers');
 const { check } = require('express-validator');
 const { validarCampos } = require('../middleware/validar-campos.middleware');
 
@@ -14,6 +14,12 @@ router.post('/', [
     check('password', 'El password es Obligatorio').not().isEmpty(),
     validarCampos
 ], login);
+
+router.post('/google', [
+    check('token', 'El token de Google es Obligatorio').not().isEmpty(),
+    validarCampos
+], googleSingIn);
+
 
 
 module.exports = router;
